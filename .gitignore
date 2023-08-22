@@ -1,4 +1,3 @@
-*.fastq
-*.gz
-*.html
-*.zip
+data*
+*.pyc
+*.DS_Store

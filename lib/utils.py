@@ -42,12 +42,25 @@ def print_execution_time(func):
         return rets
     return inner1
 
+
+
+
+
+
+
+
 @print_execution_time
 def get_new_sequence_ids():
     # TODO: automatic sequence id logic?
     ids = ["STREP22-0001","STREP22-0002","STREP22-0003","STREP22-0004"]
     print(ids)
     return ids
+
+
+
+
+
+
 
 @print_execution_time
 def download_sample(biosample_id):
@@ -98,16 +111,46 @@ def qc_trimmed_reads():
     target_dir = f'data/2_qc'
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
-    command = f'fastqc {source_dir}/* -o {target_dir}'
-    print(command)
+    files = [file.replace(".fastq","") for file in os.listdir(source_dir)]
+    for file in files:
+        if os.path.exists(f'{target_dir}/{file}_fastqc.html'):
+            print(f'{file} already qc, continue')
+            continue
+        command = f'fastqc {source_dir}/{file}.fastq -o {target_dir}'
+        os.system(command)
+    command = f'multiqc data/2_qc -o data/3_mqc --force'
     os.system(command)
 
-def rename_raw():
+def assemble_reads():
     import os
-    dir = f'samples'
-    for file in os.listdir(f'{dir}'):
-        for subfile in os.listdir(f'{dir}/{file}'):
-            prefix = subfile.split('_')[-2]
-            command = f'mv {dir}/{file}/{subfile} {dir}/{file}/{prefix}.fastq.gz'
-            os.system(command)
-            print(command)
+    source_dir = f'data/1_trimmed'
+    target_dir = f'data/4_assembled'
+    if not os.path.isdir(target_dir):
+        os.makedirs(target_dir)
+    files = [file.replace("_R1.trimd.fastq","") for file in os.listdir(source_dir) if file.endswith('R1.trimd.fastq')]
+    for file in files:
+        print(file)
+        if os.path.isdir(f'{target_dir}/{file}'):
+            print(f'already assembled {file}')
+            continue
+        command = f'spades -1 {source_dir}/{file}_R1.trimd.fastq -2 {source_dir}/{file}_R2.trimd.fastq -o {target_dir}/{file}'
+        os.system(command)
+    command = f'quast.py data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
+    os.system(command)
+
+def emmtype_assemblies():
+    import os
+    source_dir = f'data/4_assembled'
+    target_dir = f'data/6_emmtyped'
+    if not os.path.isdir(target_dir):
+        os.makedirs(target_dir)
+    for file in os.listdir(source_dir):
+        print(file)
+        if os.path.isdir(f'{target_dir}/{file}'):
+            print(f'already emmtyped {file}')
+            continue
+        command = f'emmtyper {source_dir}/{file}/contigs.fasta -o {target_dir}/{file}.tsv'
+        print(command)
+        os.system(command)
+    command = f'emmtyper {source_dir}/*/contigs.fasta -o {target_dir}/all_emmtypes.tsv'
+    os.system(command)

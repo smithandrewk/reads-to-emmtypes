@@ -1,0 +1,9 @@
+spades
+fastqc
+multiqc
+cutadapt
+pandas
+tqdm
+bs
+quast
+emmtyper
