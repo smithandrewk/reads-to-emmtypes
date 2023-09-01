@@ -120,17 +120,15 @@ def assemble_reads():
         if os.path.isdir(f'{target_dir}/{file}'):
             print(f'already assembled {file}')
             continue
-
-        # args = [f'-1 {source_dir}/{file}_R1.paired.fastq -2 {source_dir}/{file}_R2.paired.fastq' for file in os.listdir(source_dir)]
-        # arg_string,path_map = path_replacer(args,os.getcwd())
-        # command = f'emmtyper {arg_string} -o {target_dir}/all_emmtypes.tsv'
-        # program_object = container.Run(command=command, path=path_map, image='staphb/emmtyper', tag='latest')
-        # program_object.run()
-        # command = f'staphb-tk spades -1 {source_dir}/{file}_R1.paired.fastq -2 {source_dir}/{file}_R2.paired.fastq -o {target_dir}/{file}'
-        # os.system(command)
-        # os.system(f'cp {target_dir}/{file}/contigs.fasta {target_dir}/{file}/{file}_contigs.fasta')
-    # command = f'staphb-tk quast data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
-    # os.system(command)
+        args = [f'-1',f'{source_dir}/{file}_R1.paired.fastq',f'-2',f'{source_dir}/{file}_R2.paired.fastq']
+        arg_string,path_map = path_replacer(args,os.getcwd())
+        print(arg_string,path_map)
+        command = f'spades.py {arg_string} -o {target_dir}/{file}'
+        program_object = container.Run(command=command, path=path_map, image='staphb/spades', tag='latest')
+        program_object.run()
+        os.system(f'cp {target_dir}/{file}/contigs.fasta {target_dir}/{file}/{file}_contigs.fasta')
+    command = f'staphb-tk quast data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
+    os.system(command)
 
 def emmtype_assemblies():
     import os
