@@ -2,6 +2,9 @@ import pandas as pd
 import subprocess
 from tqdm import tqdm
 import os
+from staphb_toolkit.lib import calldocker as container_engine
+from staphb_toolkit.lib.autopath import path_replacer
+import staphb_toolkit.lib.container_handler as container
 
 class bcolors:
     HEADER = '\033[95m'
@@ -42,25 +45,12 @@ def print_execution_time(func):
         return rets
     return inner1
 
-
-
-
-
-
-
-
 @print_execution_time
 def get_new_sequence_ids():
     # TODO: automatic sequence id logic?
-    ids = ["STREP22-0001","STREP22-0002","STREP22-0003","STREP22-0004"]
+    ids = ["STREP22-0001","STREP22-0002"]
     print(ids)
     return ids
-
-
-
-
-
-
 
 @print_execution_time
 def download_sample(biosample_id):
@@ -99,11 +89,8 @@ def trim_raw_reads():
             print_green(f'{basespace_id} already trimmed, continuing')
             continue
         print_yellow(f'trimming {basespace_id}')
-        command = f'cutadapt -b AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -q 20 --minimum-length 50 -o {target_dir}/{basespace_id}_R1.temp.fastq -p {target_dir}/{basespace_id}_R2.temp.fastq -j 0 {source_dir}/{basespace_id}_L001_R1_001.fastq.gz {source_dir}/{basespace_id}_L001_R2_001.fastq.gz >> cutadapt.log'
+        command = f'staphb-tk trimmomatic PE {source_dir}/{basespace_id}_L001_R1_001.fastq.gz {source_dir}/{basespace_id}_L001_R2_001.fastq.gz {target_dir}/{basespace_id}_R1.paired.fastq {target_dir}/{basespace_id}_R1.unpaired.fastq {target_dir}/{basespace_id}_R2.paired.fastq {target_dir}/{basespace_id}_R2.unpaired.fastq LEADING:20 TRAILING:20 MINLEN:50'
         os.system(command)
-        command = f'cutadapt -b AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT -q 20 --minimum-length 50 -o {target_dir}/{basespace_id}_R1.trimd.fastq -p {target_dir}/{basespace_id}_R2.trimd.fastq -j 0 {target_dir}/{basespace_id}_R1.temp.fastq {target_dir}/{basespace_id}_R2.temp.fastq >> cutadapt.log'
-        os.system(command)
-        os.system(f'rm {target_dir}/{basespace_id}_R1.temp.fastq {target_dir}/{basespace_id}_R2.temp.fastq')
 
 @print_on_start_on_end
 def qc_trimmed_reads():
@@ -111,14 +98,14 @@ def qc_trimmed_reads():
     target_dir = f'data/2_qc'
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
-    files = [file.replace(".fastq","") for file in os.listdir(source_dir)]
+    files = [file.replace(".fastq","") for file in os.listdir(source_dir) if file.endswith(".paired.fastq")]
     for file in files:
         if os.path.exists(f'{target_dir}/{file}_fastqc.html'):
             print(f'{file} already qc, continue')
             continue
-        command = f'fastqc {source_dir}/{file}.fastq -o {target_dir}'
+        command = f'staphb-tk fastqc {source_dir}/{file}.fastq -o {target_dir}'
         os.system(command)
-    command = f'multiqc data/2_qc -o data/3_mqc --force'
+    command = f'staphb-tk multiqc data/2_qc -o data/3_mqc --force'
     os.system(command)
 
 def assemble_reads():
@@ -127,30 +114,34 @@ def assemble_reads():
     target_dir = f'data/4_assembled'
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
-    files = [file.replace("_R1.trimd.fastq","") for file in os.listdir(source_dir) if file.endswith('R1.trimd.fastq')]
+    files = [file.replace("_R1.paired.fastq","") for file in os.listdir(source_dir) if file.endswith('R1.paired.fastq')]
     for file in files:
         print(file)
         if os.path.isdir(f'{target_dir}/{file}'):
             print(f'already assembled {file}')
             continue
-        command = f'spades -1 {source_dir}/{file}_R1.trimd.fastq -2 {source_dir}/{file}_R2.trimd.fastq -o {target_dir}/{file}'
-        os.system(command)
-    command = f'quast.py data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
+        args = [f'-1',f'{source_dir}/{file}_R1.paired.fastq',f'-2',f'{source_dir}/{file}_R2.paired.fastq']
+        arg_string,path_map = path_replacer(args,os.getcwd())
+        print(arg_string,path_map)
+        command = f'spades.py {arg_string} -o {target_dir}/{file}'
+        program_object = container.Run(command=command, path=path_map, image='staphb/spades', tag='latest')
+        program_object.run()
+        os.system(f'cp {target_dir}/{file}/contigs.fasta {target_dir}/{file}/{file}_contigs.fasta')
+    command = f'staphb-tk quast data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
     os.system(command)
 
 def emmtype_assemblies():
     import os
     source_dir = f'data/4_assembled'
     target_dir = f'data/6_emmtyped'
+
+
+
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
-    for file in os.listdir(source_dir):
-        print(file)
-        if os.path.isdir(f'{target_dir}/{file}'):
-            print(f'already emmtyped {file}')
-            continue
-        command = f'emmtyper {source_dir}/{file}/contigs.fasta -o {target_dir}/{file}.tsv'
-        print(command)
-        os.system(command)
-    command = f'emmtyper {source_dir}/*/contigs.fasta -o {target_dir}/all_emmtypes.tsv'
-    os.system(command)
+
+    args = [f'{source_dir}/{file}/{file}_contigs.fasta' for file in os.listdir(source_dir)]
+    arg_string,path_map = path_replacer(args,os.getcwd())
+    command = f'emmtyper {arg_string} -o {target_dir}/all_emmtypes.tsv'
+    program_object = container.Run(command=command, path=path_map, image='staphb/emmtyper', tag='latest')
+    program_object.run()
