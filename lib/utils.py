@@ -2,6 +2,9 @@ import pandas as pd
 import subprocess
 from tqdm import tqdm
 import os
+from staphb_toolkit.lib import calldocker as container_engine
+from staphb_toolkit.lib.autopath import path_replacer
+import staphb_toolkit.lib.container_handler as container
 
 class bcolors:
     HEADER = '\033[95m'
@@ -95,7 +98,7 @@ def qc_trimmed_reads():
     target_dir = f'data/2_qc'
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
-    files = [file.replace(".fastq","") for file in os.listdir(source_dir)]
+    files = [file.replace(".fastq","") for file in os.listdir(source_dir) if file.endswith(".paired.fastq")]
     for file in files:
         if os.path.exists(f'{target_dir}/{file}_fastqc.html'):
             print(f'{file} already qc, continue')
@@ -117,20 +120,24 @@ def assemble_reads():
         if os.path.isdir(f'{target_dir}/{file}'):
             print(f'already assembled {file}')
             continue
-        command = f'staphb-tk spades -1 {source_dir}/{file}_R1.paired.fastq -2 {source_dir}/{file}_R2.paired.fastq -o {target_dir}/{file}'
-        os.system(command)
-        os.system(f'cp {target_dir}/{file}/contigs.fasta {target_dir}/{file}/{file}_contigs.fasta')
-    command = f'staphb-tk quast data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
-    os.system(command)
+
+        # args = [f'-1 {source_dir}/{file}_R1.paired.fastq -2 {source_dir}/{file}_R2.paired.fastq' for file in os.listdir(source_dir)]
+        # arg_string,path_map = path_replacer(args,os.getcwd())
+        # command = f'emmtyper {arg_string} -o {target_dir}/all_emmtypes.tsv'
+        # program_object = container.Run(command=command, path=path_map, image='staphb/emmtyper', tag='latest')
+        # program_object.run()
+        # command = f'staphb-tk spades -1 {source_dir}/{file}_R1.paired.fastq -2 {source_dir}/{file}_R2.paired.fastq -o {target_dir}/{file}'
+        # os.system(command)
+        # os.system(f'cp {target_dir}/{file}/contigs.fasta {target_dir}/{file}/{file}_contigs.fasta')
+    # command = f'staphb-tk quast data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
+    # os.system(command)
 
 def emmtype_assemblies():
     import os
     source_dir = f'data/4_assembled'
     target_dir = f'data/6_emmtyped'
 
-    from staphb_toolkit.lib import calldocker as container_engine
-    from staphb_toolkit.lib.autopath import path_replacer
-    import staphb_toolkit.lib.container_handler as container
+
 
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
