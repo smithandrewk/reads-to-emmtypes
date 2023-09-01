@@ -86,7 +86,7 @@ def trim_raw_reads():
             print_green(f'{basespace_id} already trimmed, continuing')
             continue
         print_yellow(f'trimming {basespace_id}')
-        command = f'staphb-tk trimmomatic PE {source_dir}/{basespace_id}_L001_R1_001.fastq.gz {source_dir}/{basespace_id}_L001_R2_001.fastq.gz {target_dir}/{basespace_id}_R1.trimd.fastq {target_dir}/{basespace_id}_R2.trimd.fastq LEADING:20 TRAILING:20 MINLEN:50'
+        command = f'staphb-tk trimmomatic PE {source_dir}/{basespace_id}_L001_R1_001.fastq.gz {source_dir}/{basespace_id}_L001_R2_001.fastq.gz {target_dir}/{basespace_id}_R1.paired.fastq {target_dir}/{basespace_id}_R1.unpaired.fastq {target_dir}/{basespace_id}_R2.paired.fastq {target_dir}/{basespace_id}_R2.unpaired.fastq LEADING:20 TRAILING:20 MINLEN:50'
         os.system(command)
 
 @print_on_start_on_end
@@ -111,13 +111,13 @@ def assemble_reads():
     target_dir = f'data/4_assembled'
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
-    files = [file.replace("_R1.trimd.fastq","") for file in os.listdir(source_dir) if file.endswith('R1.trimd.fastq')]
+    files = [file.replace("_R1.paired.fastq","") for file in os.listdir(source_dir) if file.endswith('R1.paired.fastq')]
     for file in files:
         print(file)
         if os.path.isdir(f'{target_dir}/{file}'):
             print(f'already assembled {file}')
             continue
-        command = f'staphb-tk spades -1 {source_dir}/{file}_R1.trimd.fastq -2 {source_dir}/{file}_R2.trimd.fastq -o {target_dir}/{file}'
+        command = f'staphb-tk spades -1 {source_dir}/{file}_R1.paired.fastq -2 {source_dir}/{file}_R2.paired.fastq -o {target_dir}/{file}'
         os.system(command)
         os.system(f'cp {target_dir}/{file}/contigs.fasta {target_dir}/{file}/{file}_contigs.fasta')
     command = f'staphb-tk quast data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
