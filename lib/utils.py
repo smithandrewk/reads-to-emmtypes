@@ -45,7 +45,7 @@ def print_execution_time(func):
 @print_execution_time
 def get_new_sequence_ids():
     # TODO: automatic sequence id logic?
-    ids = ["STREP22-0001","STREP22-0002","STREP22-0003","STREP22-0004"]
+    ids = ["STREP22-0001","STREP22-0002"]
     print(ids)
     return ids
 
@@ -119,6 +119,7 @@ def assemble_reads():
             continue
         command = f'staphb-tk spades -1 {source_dir}/{file}_R1.trimd.fastq -2 {source_dir}/{file}_R2.trimd.fastq -o {target_dir}/{file}'
         os.system(command)
+        os.system(f'cp {target_dir}/{file}/contigs.fasta {target_dir}/{file}/{file}_contigs.fasta')
     command = f'staphb-tk quast data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
     os.system(command)
 
@@ -134,7 +135,7 @@ def emmtype_assemblies():
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
 
-    args = [f'{source_dir}/{file}/contigs.fasta' for file in os.listdir(source_dir)]
+    args = [f'{source_dir}/{file}/{file}_contigs.fasta' for file in os.listdir(source_dir)]
     arg_string,path_map = path_replacer(args,os.getcwd())
     command = f'emmtyper {arg_string} -o {target_dir}/all_emmtypes.tsv'
     program_object = container.Run(command=command, path=path_map, image='staphb/emmtyper', tag='latest')
