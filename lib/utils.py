@@ -42,25 +42,12 @@ def print_execution_time(func):
         return rets
     return inner1
 
-
-
-
-
-
-
-
 @print_execution_time
 def get_new_sequence_ids():
     # TODO: automatic sequence id logic?
     ids = ["STREP22-0001","STREP22-0002","STREP22-0003","STREP22-0004"]
     print(ids)
     return ids
-
-
-
-
-
-
 
 @print_execution_time
 def download_sample(biosample_id):
@@ -99,11 +86,8 @@ def trim_raw_reads():
             print_green(f'{basespace_id} already trimmed, continuing')
             continue
         print_yellow(f'trimming {basespace_id}')
-        command = f'cutadapt -b AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -q 20 --minimum-length 50 -o {target_dir}/{basespace_id}_R1.temp.fastq -p {target_dir}/{basespace_id}_R2.temp.fastq -j 0 {source_dir}/{basespace_id}_L001_R1_001.fastq.gz {source_dir}/{basespace_id}_L001_R2_001.fastq.gz >> cutadapt.log'
+        command = f'staphb-tk trimmomatic PE {source_dir}/{basespace_id}_L001_R1_001.fastq.gz {source_dir}/{basespace_id}_L001_R2_001.fastq.gz {target_dir}/{basespace_id}_R1.trimd.fastq {target_dir}/{basespace_id}_R2.trimd.fastq LEADING:20 TRAILING:20 MINLEN:50'
         os.system(command)
-        command = f'cutadapt -b AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT -q 20 --minimum-length 50 -o {target_dir}/{basespace_id}_R1.trimd.fastq -p {target_dir}/{basespace_id}_R2.trimd.fastq -j 0 {target_dir}/{basespace_id}_R1.temp.fastq {target_dir}/{basespace_id}_R2.temp.fastq >> cutadapt.log'
-        os.system(command)
-        os.system(f'rm {target_dir}/{basespace_id}_R1.temp.fastq {target_dir}/{basespace_id}_R2.temp.fastq')
 
 @print_on_start_on_end
 def qc_trimmed_reads():
@@ -116,9 +100,9 @@ def qc_trimmed_reads():
         if os.path.exists(f'{target_dir}/{file}_fastqc.html'):
             print(f'{file} already qc, continue')
             continue
-        command = f'fastqc {source_dir}/{file}.fastq -o {target_dir}'
+        command = f'staphb-tk fastqc {source_dir}/{file}.fastq -o {target_dir}'
         os.system(command)
-    command = f'multiqc data/2_qc -o data/3_mqc --force'
+    command = f'staphb-tk multiqc data/2_qc -o data/3_mqc --force'
     os.system(command)
 
 def assemble_reads():
@@ -133,9 +117,9 @@ def assemble_reads():
         if os.path.isdir(f'{target_dir}/{file}'):
             print(f'already assembled {file}')
             continue
-        command = f'spades -1 {source_dir}/{file}_R1.trimd.fastq -2 {source_dir}/{file}_R2.trimd.fastq -o {target_dir}/{file}'
+        command = f'staphb-tk spades -1 {source_dir}/{file}_R1.trimd.fastq -2 {source_dir}/{file}_R2.trimd.fastq -o {target_dir}/{file}'
         os.system(command)
-    command = f'quast.py data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
+    command = f'staphb-tk quast data/4_assembled/*/contigs.fasta -o data/5_quast -t 1'
     os.system(command)
 
 def emmtype_assemblies():
