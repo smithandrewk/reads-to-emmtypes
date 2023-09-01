@@ -126,15 +126,16 @@ def emmtype_assemblies():
     import os
     source_dir = f'data/4_assembled'
     target_dir = f'data/6_emmtyped'
+
+    from staphb_toolkit.lib import calldocker as container_engine
+    from staphb_toolkit.lib.autopath import path_replacer
+    import staphb_toolkit.lib.container_handler as container
+
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
-    for file in os.listdir(source_dir):
-        print(file)
-        if os.path.isdir(f'{target_dir}/{file}'):
-            print(f'already emmtyped {file}')
-            continue
-        command = f'emmtyper {source_dir}/{file}/contigs.fasta -o {target_dir}/{file}.tsv'
-        print(command)
-        os.system(command)
-    command = f'emmtyper {source_dir}/*/contigs.fasta -o {target_dir}/all_emmtypes.tsv'
-    os.system(command)
+
+    args = [f'{source_dir}/{file}/contigs.fasta' for file in os.listdir(source_dir)]
+    arg_string,path_map = path_replacer(args,os.getcwd())
+    command = f'emmtyper {arg_string} -o {target_dir}/all_emmtypes.tsv'
+    program_object = container.Run(command=command, path=path_map, image='staphb/emmtyper', tag='latest')
+    program_object.run()
